@@ -11,13 +11,17 @@
 pin_t trig_pin = D2;
 pin_t echo_pin = D6;
 
+// Depth of pump housing.
+float PUMP_DEPTH = 23.5;
+
 // Globally defined variables for Particle to use.
-char pv_inches[8], pv_cm[8];
+char pv_inches[8];
+//char pv_cm[8];
 
 void setup() {
     // Define particle variables for app to scrape via API
     Particle.variable("inch_distance", pv_inches);
-    Particle.variable("cm_distance", pv_cm);
+    //Particle.variable("cm_distance", pv_cm);
     
     // Opens serial port and sets to fastest bits per second(baud)
     Serial.begin(115200);
@@ -33,7 +37,7 @@ void setup() {
 
 void loop() {
     pingrounded();
-    delay(2000);
+    delay(20000);
 }
 
 void pingrounded()
@@ -46,20 +50,27 @@ void pingrounded()
   
     float duration = pulseIn(echo_pin, HIGH);
 
-    if (duration > 3500) should_publish = false;
+    if (duration > 5500) should_publish = false;
     /* Convert the time into a distance */
     // Sound travels at 1130 ft/s (73.746 us/inch)
     // or 340 m/s (29 us/cm), out and back so divide by 2
     float inches = (duration / 2.0) / 73.746;
-    float cm = (duration / 2.0) / 29.0;
+    //float cm = (duration / 2.0) / 29.0;
+    
+    // PUMP_DEPTH Diagram
+    //  B----------23.5"----------Sensor would read 22", want 0"
+    //  B---5.5"--W-------18"-----Sensor would read 18", want 5.5"
+    
+    // Subtract distance from PUMP_DEPTH to get depth of actual water
+    inches = PUMP_DEPTH - inches;
     
     // Writes distances + duration out to serial monitor
-    Serial.printlnf("%.3f in / %.3f cm / %.3f us -- Publish: %s", inches, cm, duration, should_publish ? "YES" : "NO");
+    Serial.printlnf("%.3f in / %.3f us -- Publish: %s", inches, duration, should_publish ? "YES" : "NO");
     
     if (should_publish) {
         // Writes each distance value to the global Char array for Particle Variables
         sprintf(pv_inches, "%.3f", inches);
-        sprintf(pv_cm, "%.3f", cm);
+        //sprintf(pv_cm, "%.3f", cm);
         
         // Publishes each distance value to Google App Engine
         // POST http://home-metrics.appspot.com/webhook
